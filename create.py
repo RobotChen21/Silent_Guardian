@@ -3,6 +3,7 @@ import os
 import json
 import datetime
 import numpy as np
+from auto_gptq import AutoGPTQForCausalLM
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, BertForMaskedLM
 from STP import step
@@ -36,8 +37,9 @@ class defend_manger:
     def main(self):
         device = "cuda:0"
         tokenizer_path = model_path = self.path
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-        model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path,use_fast=True)
+        model = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
+        # model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
 
         targets = json.load(open(self.target_file, 'r'))
         predictions = []
