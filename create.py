@@ -36,8 +36,12 @@ class defend_manger:
     
     def main(self):
         device = "cuda:0"
+        #以下三行是deepseek
+        # model_path = self.path
+        # tokenizer_path = "DeepSeek-AI/deepseek-llm-7b-base"
+        # tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True, use_fast=False)
         tokenizer_path = model_path = self.path
-        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path,use_fast=True)
+        tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         model = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
         # model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
 

@@ -6,7 +6,7 @@ import tensorflow_hub as hub
 import tensorflow as tf
 import numpy as np
 import Levenshtein
-import tqdm
+from tqdm import tqdm
 import argparse
 
 def get_args():
@@ -24,7 +24,7 @@ def final_result_file(target_file):
 def test_result(encoder_path, target_path):
     embed = hub.load(encoder_path)
     path = target_path
-    targets = json.load(open(path, 'r'))
+    targets = json.load(open(path, 'r', encoding='utf-8'))
     result = []
 
     with tf.device('/CPU:0'):
@@ -40,7 +40,13 @@ def test_result(encoder_path, target_path):
             prob = target["prob"]
             origin = [target["origin"]]
             adv = [target["adv"][3:]]
-            cos_similarity = torch.cosine_similarity(torch.tensor(np.array(embed(origin))), torch.tensor(np.array(embed(adv))), dim=1)
+            # cos_similarity = torch.cosine_similarity(torch.tensor(np.array(embed(origin))), torch.tensor(np.array(embed(adv))), dim=1)
+            cos_similarity = torch.cosine_similarity(
+                torch.tensor(np.array(embed(origin)), dtype=torch.float32),
+                torch.tensor(np.array(embed(adv)), dtype=torch.float32),
+                dim=1
+            )
+
             final_similarity = 1-torch.acos(cos_similarity)/math.pi
             edit = Levenshtein.distance(target["origin"], target["adv"][3:])/len(target["origin"])
             similarity = float(final_similarity)
@@ -53,6 +59,8 @@ def test_result(encoder_path, target_path):
             print("=============")
             result.append(cat)
     result_file_name = final_result_file(target_path)
+    if not os.path.exists('test_result'):
+        os.makedirs('test_result')
     json_path = os.path.join('test_result', result_file_name)
     json_file = open(json_path, mode='w',encoding='utf-8')
     list_json=json.dumps(result, indent=4,ensure_ascii=False)
