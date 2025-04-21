@@ -45,7 +45,7 @@ class defend_manger:
         model = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
         # model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
 
-        targets = json.load(open(self.target_file, 'r'))
+        targets = json.load(open(self.target_file, 'r',encoding='utf-8'))
         predictions = []
         for i, target in tqdm(list(enumerate(targets))):
             init_token = torch.tensor(tokenizer.encode(target)).to(device)

@@ -33,8 +33,9 @@ print(y)
 #export TRANSFORMERS_CACHE=/root/autodl-tmp/cache/hub
 #训练小说
 #python create.py --STP "STP" --path "TheBloke/vicuna-7B-v1.3-GPTQ" --bert_path "bert" --agg_path "llama" --target_file "dataset/novel.json" --instructions_file "dataset/instructions.json" --epoch 5 --batch_size 64 --topk 5 --topk_semanteme 10
-#python create.py --STP "STP" --path "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B" --bert_path "bert" --agg_path "llama" --target_file "dataset/target.json" --instructions_file "dataset/instructions.json" --epoch 15 --batch_size 128 --topk 5 --topk_semanteme 10
+#python create.py --STP "STP" --path "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B" --bert_path "bert" --agg_path "llama" --target_file "dataset/target.json" --instructions_file "dataset/instructions.json" --epoch 10 --batch_size 64 --topk 5 --topk_semanteme 10
 #python create.py --STP "STP" --path "TheBloke/toxicqa-Llama2-7B-GPTQ" --bert_path "bert" --agg_path "llama" --target_file "dataset/target.json" --instructions_file "dataset/instructions.json" --epoch 5 --batch_size 64 --topk 5 --topk_semanteme 10
+#TheBloke/deepseek-llm-7B-chat-GPTQ
 
 
 #测试代码
