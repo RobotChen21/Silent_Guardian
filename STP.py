@@ -126,8 +126,12 @@ def step(model, init, batch_size=1024, topk=5 ,topk_semanteme=10):
             full_input = cand.unsqueeze(0)
             logits = model(full_input).logits
             shift_logits = logits[..., -1, :].contiguous()
-            loss[j] = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([2]).cuda())  ###token as added one,end token
-            prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[2] #end token
+            #LLama模型的endtoken是[2]
+            # loss[j] = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([2]).cuda())  ###token as added one,end token
+            # prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[2] #end token
+            # Deepseek的end token是EOS token ID: 100001
+            loss[j] = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([100001]).cuda())  ###token as added one,end token
+            prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[100001] #end token
         min_idx = loss.argmin()
         next_control, cand_loss, cand_prob= control_cand[min_idx], loss[min_idx], prob[min_idx]
 
