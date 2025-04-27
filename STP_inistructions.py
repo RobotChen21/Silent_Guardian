@@ -33,7 +33,7 @@ def token_gradients(model, tokenizer, instructions, init):
         full_input_embeds = torch.cat((instruction_embedding, input_embeds), dim=1)
         logits = model(inputs_embeds=full_input_embeds).logits
         shift_logits = logits[..., -1, :].contiguous()
-        loss += nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([2]).cuda())  ### token as added one, end token.
+        loss += nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([tokenizer.eos_token_id]).cuda())  ### token as added one, end token.
     loss = loss/3
     loss.backward()
     return one_hot.grad.clone() #computate grad only
@@ -122,6 +122,7 @@ def step_instructions(model, tokenizer, init, instructions, batch_size=1024, top
     # Search
     loss = torch.zeros(batch_size).to(main_device)
     prob = []
+    eos_token_id = tokenizer.eos_token_id
     with torch.no_grad():
         for j, cand in enumerate(control_cand):
             prob_temp = []
@@ -131,8 +132,8 @@ def step_instructions(model, tokenizer, init, instructions, batch_size=1024, top
                 full_input = torch.cat((instruction_token,protection_content),dim=1)
                 logits = model(full_input).logits
                 shift_logits = logits[..., -1, :].contiguous()
-                loss[j] += nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([2]).cuda())  ###token as added one,end token
-                prob_temp.append(float(torch.nn.functional.softmax(logits[0,-1,:],dim=0)[2]))
+                loss[j] += nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([eos_toke]).cuda())  ###token as added one,end token
+                prob_temp.append(float(torch.nn.functional.softmax(logits[0,-1,:],dim=0)[eos_token_id]))
                 # prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[2] #end token
             loss[j] /= len(instructions)
             prob.append(prob_temp)

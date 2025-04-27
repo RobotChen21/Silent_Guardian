@@ -7,7 +7,7 @@ from sentence_transformers.util import (semantic_search,
                                         dot_score,
                                         normalize_embeddings)
 
-def token_gradients_agg(model_1, model_2, init):
+def token_gradients_agg(model_1, model_2, tokenizer_1, tokenizer_2, init):
     embed_weights_1 = model_1.get_input_embeddings().weight
     embed_weights_2 = model_2.get_input_embeddings().weight ##vicuna
     one_hot = torch.zeros(
@@ -27,12 +27,12 @@ def token_gradients_agg(model_1, model_2, init):
     input_embeds_1 = (one_hot @ embed_weights_1).unsqueeze(0)#batch,len,weight
     logits_1 = model_1(inputs_embeds = input_embeds_1).logits
     shift_logits_1 = logits_1[..., -1, :].contiguous()
-    loss_1 = nn.CrossEntropyLoss()(shift_logits_1.view(-1, shift_logits_1.size(-1)), torch.tensor([2]).cuda())  ### token as added one, end token.
+    loss_1 = nn.CrossEntropyLoss()(shift_logits_1.view(-1, shift_logits_1.size(-1)), torch.tensor([tokenizer_1.eos_token_id]).cuda())  ### token as added one, end token.
     
     input_embeds_2 = (one_hot @ embed_weights_2).unsqueeze(0)#batch,len,weight
     logits_2 = model_2(inputs_embeds = input_embeds_2).logits
     shift_logits_2 = logits_2[..., -1, :].contiguous()
-    loss_2 = nn.CrossEntropyLoss()(shift_logits_2.view(-1, shift_logits_2.size(-1)), torch.tensor([2]).cuda())  ### token as added one, end token.
+    loss_2 = nn.CrossEntropyLoss()(shift_logits_2.view(-1, shift_logits_2.size(-1)), torch.tensor([tokenizer_2.eos_token_id]).cuda())  ### token as added one, end token.
 
     loss = (loss_1 + loss_2)/2
     loss.backward()
@@ -111,7 +111,7 @@ def sample_control_agg(model_1, init, grad, batch_size,topk=5, topk_semanteme=10
     """
     return new_control_toks
 
-def step_agg(model_1, model_2, init, batch_size=1024, topk=5 ,topk_semanteme=10):
+def step_agg(model_1, model_2, tokenizer_1, tokenizer_2, init, batch_size=1024, topk=5 ,topk_semanteme=10):
     main_device = model_1.device
     # Aggregate gradients.universal needs to add all gradient.
     grad = token_gradients_agg(model_1, model_2, init)
@@ -126,6 +126,8 @@ def step_agg(model_1, model_2, init, batch_size=1024, topk=5 ,topk_semanteme=10)
     loss_2 = torch.zeros(batch_size).to(main_device)
     prob_1 = torch.zeros(batch_size).to(main_device)
     prob_2 = torch.zeros(batch_size).to(main_device)
+    eos_token_id_1 = tokenizer_1.eos_token_id
+    eos_token_id_2 = tokenizer_2.eos_token_id
     with torch.no_grad():
         for j, cand in enumerate(control_cand):
             full_input = cand.unsqueeze(0)
@@ -133,11 +135,11 @@ def step_agg(model_1, model_2, init, batch_size=1024, topk=5 ,topk_semanteme=10)
             shift_logits_1 = logits_1[..., -1, :].contiguous()
             logits_2 = model_2(full_input).logits
             shift_logits_2 = logits_2[..., -1, :].contiguous()
-            loss_1[j] = nn.CrossEntropyLoss()(shift_logits_1.view(-1, shift_logits_1.size(-1)), torch.tensor([2]).cuda())  ###token as added one,end token
-            loss_2[j] = nn.CrossEntropyLoss()(shift_logits_2.view(-1, shift_logits_2.size(-1)), torch.tensor([2]).cuda())  ###token as added one,end token
+            loss_1[j] = nn.CrossEntropyLoss()(shift_logits_1.view(-1, shift_logits_1.size(-1)), torch.tensor([eos_token_id_1]).cuda())  ###token as added one,end token
+            loss_2[j] = nn.CrossEntropyLoss()(shift_logits_2.view(-1, shift_logits_2.size(-1)), torch.tensor([eos_token_id_2]).cuda())  ###token as added one,end token
             loss[j] = (loss_1[j] + loss_2[j])/2
-            prob_1[j] = torch.nn.functional.softmax(logits_1[0,-1,:],dim=0)[2] #end token
-            prob_2[j] = torch.nn.functional.softmax(logits_2[0,-1,:],dim=0)[2] #end token
+            prob_1[j] = torch.nn.functional.softmax(logits_1[0,-1,:],dim=0)[eos_token_id_1] #end token
+            prob_2[j] = torch.nn.functional.softmax(logits_2[0,-1,:],dim=0)[eos_token_id_2] #end token
         min_idx = loss.argmin()
         next_control, cand_loss, cand_loss_1, cand_loss_2, cand_prob_1, cand_prob_2 = control_cand[min_idx], loss[min_idx], loss_1[min_idx], loss_2[min_idx], prob_1[min_idx], prob_2[min_idx]
 

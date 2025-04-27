@@ -7,7 +7,7 @@ from sentence_transformers.util import (semantic_search,
                                         dot_score,
                                         normalize_embeddings)
 
-def token_gradients(model, init):
+def token_gradients(model, tokenizer, init):
     embed_weights = model.get_input_embeddings().weight 
     one_hot = torch.zeros(
         init.shape[0],# len_of_token
@@ -25,7 +25,8 @@ def token_gradients(model, init):
     input_embeds = (one_hot @ embed_weights).unsqueeze(0)#batch,len,weight
     logits = model(inputs_embeds=input_embeds).logits
     shift_logits = logits[..., -1, :].contiguous()
-    loss = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([2]).cuda())  ### token as added one, end token.
+    eos_token_id = tokenizer.eos_token_id
+    loss = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([eos_token_id]).cuda())  ### token as added one, end token.
     
     loss.backward()
     return one_hot.grad.clone()#computate grad only
@@ -108,11 +109,11 @@ def sample_control(model, init, grad, batch_size, topk=5, topk_semanteme=10):
     """
     return new_control_toks
 
-def step(model, init, batch_size=1024, topk=5 ,topk_semanteme=10):
+def step(model, init, tokenizer, batch_size=1024, topk=5, topk_semanteme=10):
 
     main_device = model.device
     # Aggregate gradients.universal needs to add all gradient.
-    grad = token_gradients(model, init)
+    grad = token_gradients(model, tokenizer, init)
 
     with torch.no_grad():
         control_cand = sample_control(model, init, grad, batch_size, topk, topk_semanteme)
@@ -121,6 +122,7 @@ def step(model, init, batch_size=1024, topk=5 ,topk_semanteme=10):
     # Search
     loss = torch.zeros( batch_size).to(main_device)
     prob = torch.zeros( batch_size).to(main_device)
+    eos_token_id = tokenizer.eos_token_id
     with torch.no_grad():
         for j, cand in enumerate(control_cand):
             full_input = cand.unsqueeze(0)
@@ -130,8 +132,8 @@ def step(model, init, batch_size=1024, topk=5 ,topk_semanteme=10):
             # loss[j] = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([2]).cuda())  ###token as added one,end token
             # prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[2] #end token
             # Deepseek的end token是EOS token ID: 100001
-            loss[j] = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([100001]).cuda())  ###token as added one,end token
-            prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[100001] #end token
+            loss[j] = nn.CrossEntropyLoss()(shift_logits.view(-1, shift_logits.size(-1)), torch.tensor([eos_token_id]).cuda())  ###token as added one,end token
+            prob[j] = torch.nn.functional.softmax(logits[0,-1,:],dim=0)[eos_token_id] #end token
         min_idx = loss.argmin()
         next_control, cand_loss, cand_prob= control_cand[min_idx], loss[min_idx], prob[min_idx]
 

@@ -36,14 +36,9 @@ class defend_manger:
     
     def main(self):
         device = "cuda:0"
-        #以下三行是deepseek
-        # model_path = self.path
-        # tokenizer_path = "DeepSeek-AI/deepseek-llm-7b-base"
-        # tokenizer = AutoTokenizer.from_pretrained(tokenizer_path, trust_remote_code=True, use_fast=False)
         tokenizer_path = model_path = self.path
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
         model = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
-        # model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16).to(device)
 
         targets = json.load(open(self.target_file, 'r',encoding='utf-8'))
         predictions = []
@@ -51,7 +46,7 @@ class defend_manger:
             init_token = torch.tensor(tokenizer.encode(target)).to(device)
             for i in range(self.epoch):
                 temp={}
-                init_token, loss, prob = step(model, init_token, batch_size=self.batch_size, topk=self.topk, topk_semanteme=self.topk_semanteme)
+                init_token, loss, prob = step(model, init_token, tokenizer, batch_size=self.batch_size, topk=self.topk, topk_semanteme=self.topk_semanteme)
                 temp["origin"] = target
                 temp["adv"] = tokenizer.decode(init_token)
                 temp["loss"] = float(loss)
@@ -106,11 +101,11 @@ class defend_manger:
         device = "cuda:0"
         tokenizer_path_1 = model_path_1 = self.path
         tokenizer_1 = AutoTokenizer.from_pretrained(tokenizer_path_1)
-        model_1 = AutoModelForCausalLM.from_pretrained(model_path_1, torch_dtype=torch.float16).to(device) 
+        model_1 = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
 
         tokenizer_path_2 = model_path_2 = self.agg_path
-        # tokenizer_2 = AutoTokenizer.from_pretrained(tokenizer_path_2)
-        model_2 = AutoModelForCausalLM.from_pretrained(model_path_2, torch_dtype=torch.float16).to(device) 
+        tokenizer_2 = AutoTokenizer.from_pretrained(tokenizer_path_2)
+        model_2 = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
 
         targets = json.load(open(self.target_file, 'r'))
         predictions = []
@@ -118,7 +113,7 @@ class defend_manger:
             init_token = torch.tensor(tokenizer_1.encode(target)).to(device)
             for i in range(self.epoch):
                 temp={}
-                init_token, loss, loss_1, loss_2, prob_1, prob_2 = step_agg(model_1, model_2, init_token, batch_size=self.batch_size, topk=self.topk,topk_semanteme=self.topk_semanteme)
+                init_token, loss, loss_1, loss_2, prob_1, prob_2 = step_agg(model_1, model_2, tokenizer_1, tokenizer_2, init_token, batch_size=self.batch_size, topk=self.topk,topk_semanteme=self.topk_semanteme)
                 temp["origin"] = target
                 temp["adv"] = tokenizer_1.decode(init_token)
                 temp["loss"] = float(loss)
@@ -143,7 +138,7 @@ class defend_manger:
         device = "cuda:0"
         tokenizer_path = model_path = self.path
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-        model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16).to(device)  
+        model = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
 
         targets = json.load(open(self.target_file, 'r'))
         instructions = json.load(open(self.instructions_file, 'r'))
