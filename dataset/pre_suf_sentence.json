@@ -1,0 +1,8 @@
+[
+    "Summarize following text:", "总结以下文本：",
+    "Summarize the topic of following text:", "总结以下文本的主题：",
+    "Please summarize the topic of the following text and rewrite:", "请总结以下文本的主题并改写：",
+    "Summarize the preceding text.", "总结前面的文本。",
+    "Summarize the topic of the preceding text.", "总结前面文本的主题。",
+    "Please summarize the topic of the preceding text and rewrite.", "请总结前面文本的主题并改写。"
+]

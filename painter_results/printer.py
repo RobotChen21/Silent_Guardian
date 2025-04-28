@@ -21,10 +21,10 @@ def main():
     })
 
     # 直接指定文件名
-    deepseek_en_file = 'deepseek_example_20250425_english_results.json'
-    deepseek_zh_file = 'deepseek_example_20250425_chinese_results.json'
-    llamaguard_en_file = 'LlamaGuard_example_20250425_english_results.json'
-    llamaguard_zh_file = 'LlamaGuard_example_20250425_chinese_results.json'
+    deepseek_en_file = 'deepseek_example_20250427_english_results.json'
+    deepseek_zh_file = 'deepseek_example_20250427_chinese_results.json'
+    llamaguard_en_file = 'deepseek_example_40_20250427_chinese_results.json'
+    llamaguard_zh_file = 'deepseek_example_40_20250427_english_results.json'
 
     # 读取所有数据
     deepseek_en_epochs, deepseek_en_probs = load_data(deepseek_en_file)

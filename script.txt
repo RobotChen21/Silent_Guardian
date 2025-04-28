@@ -4,8 +4,8 @@ conda activate Silent_Guardian_Test
 向hf发送请求
 curl -I https://huggingface.co
 存模型的地方
- cd /root/autodl-tmp/cache/hub
- cd /tmp/pycharm_project_220
+cd /root/autodl-tmp/cache/hub
+cd /tmp/pycharm_project_220
 学术加速
 source /etc/network_turbo
 设置hugging-face镜像
@@ -16,7 +16,7 @@ export HF_HOME=/root/autodl-tmp/cache/
 export TRANSFORMERS_CACHE=/root/autodl-tmp/cache/hub
 
 训练样本
-python create.py --STP "STP" --path "TheBloke/deepseek-llm-7B-chat-GPTQ" --bert_path "bert" --agg_path "llama" --target_file "dataset/example.json" --instructions_file "dataset/instructions.json" --epoch 30 --batch_size 64 --topk 5 --topk_semanteme 10
+python create.py --STP "STP" --path "TheBloke/deepseek-llm-7B-chat-GPTQ" --bert_path "bert" --agg_path "llama" --target_file "dataset/example_40.json" --instructions_file "dataset/instructions.json" --epoch 30 --batch_size 64 --topk 5 --topk_semanteme 10
 TheBloke/deepseek-llm-7B-chat-GPTQ
 TheBloke/LlamaGuard-7B-GPTQ
 TheBloke/vicuna-7B-v1.3-GPTQ
@@ -30,19 +30,19 @@ screen -S 窗口名称 -X quit  #删除会话
 python json-processor.py commom_method\vicuna-7B-v1_target_20250412_151544.json
 
 测试代码
-python test_result.py --encoder_path "https://tfhub.dev/google/universal-sentence-encoder/4" --target_path "commom_method/vicuna_novel_20250425.json"
+python test_result.py --encoder_path "https://tfhub.dev/google/universal-sentence-encoder/4" --target_path "commom_method/deepseek_target_zh_20250427.json"
 
 处理最终的vicuna数据集,处理test_result中带target的文件
 python vicuna_analyze.py --process_all
 
 处理最终的novel数据集,处理test_result中带novel的文件
-python novel_analyze.py
+python novel_analyze.py --json_file "deepseek_novel_20250427.json"
 
 处理novel的30epoch的数据集
-python epoch_analyze.py commom_method/deepseek_example_20250425.json
+python epoch_analyze.py commom_method/deepseek_example_40_20250427.json
 
 迁移性计算PSR
-python prob_calculator.py --path /path/to/model --input_file model1_dataset_time.json
+python prob_calculator.py --path TheBloke/deepseek-llm-7B-chat-GPTQ --input_file "commom_method/LlamaGuard_target_20250424.json"
 
 计算带前后缀之后的PSR
-python pre_suf_sentence.py input.json prefix_suffix.json --model_path model
+python pre_suf_sentence.py commom_method/deepseek_novel_20250427.json dataset/pre_suf_sentence.json --model_path TheBloke/deepseek-llm-7B-chat-GPTQ
