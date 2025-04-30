@@ -109,7 +109,7 @@ def generate_output_filename(input_file, model_path, file_type):
     current_date = datetime.datetime.now().strftime("%Y%m%d")
 
     # Create output filename with the new format model1->model2_target_yyyyMMdd.json
-    return f"{model1_part}->{model2_part}_{file_type}_{current_date}.json"
+    return f"{model1_part}-》{model2_part}_{file_type}_{current_date}.json"
 
 
 def categorize_sentences(file_type):
