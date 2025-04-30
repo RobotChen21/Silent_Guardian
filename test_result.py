@@ -9,11 +9,12 @@ import Levenshtein
 from tqdm import tqdm
 import argparse
 import sys
+import re
 
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--encoder_path", type=str, default="universal_encoder")
+    parser.add_argument("--encoder_path", type=str, default="https://tfhub.dev/google/universal-sentence-encoder/4")
     parser.add_argument("--target_path", type=str, default="vicuna_novel_.json")
 
     return parser.parse_args()
@@ -84,6 +85,22 @@ def filter_json_by_max_prob(input_file):
         return None
 
 
+def remove_model_prefix(text):
+    """
+    动态移除模型生成文本前的前缀，移除开头的 <xxxxx> 格式的标记
+
+    :param text: 带有可能前缀的文本
+    :return: 移除前缀后的文本
+    """
+    # 检查是否以 < 开头且包含 >
+    if text.startswith('<') and '>' in text:
+        # 找到第一个 > 的位置并从其后开始截取
+        return text[text.find('>') + 1:]
+
+    # 如果没有匹配到明显的前缀，返回原始文本
+    return text
+
+
 def test_result(encoder_path, target_path):
     # 先执行去重处理
     print("第一步：执行去重处理...")
@@ -99,6 +116,16 @@ def test_result(encoder_path, target_path):
     targets = filtered_data  # 直接使用内存中已经去重的数据
     result = []
 
+    # 打印前几个样本的原始和处理后的adv文本，用于验证前缀移除效果
+    print("样本前缀处理效果预览:")
+    for i, target in enumerate(targets[:3]):  # 只显示前3个样本
+        adv_original = target["adv"]
+        adv_processed = remove_model_prefix(adv_original)
+        print(f"样本 {i + 1}:")
+        print(f"  原始: {adv_original[:50]}...")  # 只显示前50个字符
+        print(f"  处理后: {adv_processed[:50]}...")
+        print("-" * 50)
+
     with tf.device('/CPU:0'):
         for i, target in tqdm(list(enumerate(targets))):
             cat = {
@@ -111,8 +138,11 @@ def test_result(encoder_path, target_path):
             loss = target["loss"]
             prob = target["prob"]
             origin = [target["origin"]]
-            adv = [target["adv"][3:]]
-            # cos_similarity = torch.cosine_similarity(torch.tensor(np.array(embed(origin))), torch.tensor(np.array(embed(adv))), dim=1)
+
+            # 动态处理前缀，无需硬编码索引
+            adv_text = remove_model_prefix(target["adv"])
+            adv = [adv_text]
+
             cos_similarity = torch.cosine_similarity(
                 torch.tensor(np.array(embed(origin)), dtype=torch.float32),
                 torch.tensor(np.array(embed(adv)), dtype=torch.float32),
@@ -120,7 +150,10 @@ def test_result(encoder_path, target_path):
             )
 
             final_similarity = 1 - torch.acos(cos_similarity) / math.pi
-            edit = Levenshtein.distance(target["origin"], target["adv"][3:]) / len(target["origin"])
+
+            # 使用处理后的无前缀文本计算编辑距离
+            edit = Levenshtein.distance(target["origin"], adv_text) / len(target["origin"])
+
             similarity = float(final_similarity)
 
             cat["loss"] = loss

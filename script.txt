@@ -1,13 +1,16 @@
 激活环境
 conda activate Silent_Guardian
 conda activate Silent_Guardian_Test
-向hf发送请求
-curl -I https://huggingface.co
+
 存模型的地方
 cd /root/autodl-tmp/cache/hub
 cd /tmp/pycharm_project_220
+cd /root/autodl-tmp/
+
 学术加速
 source /etc/network_turbo
+向hf发送请求
+curl -I https://huggingface.co
 设置hugging-face镜像
 export HF_ENDPOINT=https://hf-mirror.com
 将模型搬到系统盘
@@ -30,7 +33,7 @@ screen -S 窗口名称 -X quit  #删除会话
 python json-processor.py commom_method\vicuna-7B-v1_target_20250412_151544.json
 
 测试代码
-python test_result.py --encoder_path "https://tfhub.dev/google/universal-sentence-encoder/4" --target_path "commom_method/deepseek_target_zh_20250427.json"
+python test_result.py --target_path "commom_method/deepseek_novel_20250427.json"
 
 处理最终的vicuna数据集,处理test_result中带target的文件
 python vicuna_analyze.py --process_all
@@ -42,7 +45,7 @@ python novel_analyze.py --json_file "deepseek_novel_20250427.json"
 python epoch_analyze.py commom_method/deepseek_example_40_20250427.json
 
 迁移性计算PSR
-python prob_calculator.py --path TheBloke/deepseek-llm-7B-chat-GPTQ --input_file "commom_method/LlamaGuard_target_20250424.json"
+python prob_calculator.py --path TheBloke/vicuna-7B-v1.3-GPTQ --input_file "commom_method/deepseek_novel_20250427.json"
 
 计算带前后缀之后的PSR
-python pre_suf_sentence.py commom_method/deepseek_novel_20250427.json dataset/pre_suf_sentence.json --model_path TheBloke/deepseek-llm-7B-chat-GPTQ
+python pre_suf_sentence.py commom_method/vicuna_novel_20250425.json dataset/pre_suf_sentence.json --model_path TheBloke/vicuna-7B-v1.3-GPTQ

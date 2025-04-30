@@ -96,16 +96,22 @@ def identify_text_field(sentences):
     :return: Name of the text field
     """
     # Common field names for text content
-    possible_text_fields = ['text', 'content', 'sentence', 'prompt', 'message', 'origin']
+    possible_text_fields = ['text', 'content', 'sentence', 'prompt', 'message', 'adv', 'origin']
 
     if not sentences or not isinstance(sentences[0], dict):
         print("Warning: Sentences data is empty or not in expected format")
-        return 'text'  # Default
+        return 'adv'  # Default to adv field
 
     # Check which field exists in the first sentence
     sample = sentences[0]
     print(f"Sample sentence structure: {list(sample.keys())}")
 
+    # 优先检查 adv 字段
+    if 'adv' in sample:
+        print(f"Using 'adv' as the text field")
+        return 'adv'
+
+    # 如果没有 adv 字段，则检查其他可能字段
     for field in possible_text_fields:
         if field in sample:
             print(f"Using '{field}' as the text field")
@@ -124,8 +130,8 @@ def identify_text_field(sentences):
         print(f"Using '{longest_field}' as the text field (longest string value)")
         return longest_field
 
-    print("Warning: Could not identify text field, defaulting to 'origin'")
-    return 'origin'
+    print("Warning: Could not identify text field, defaulting to 'adv'")
+    return 'adv'
 
 
 def categorize_sentences(sentences, text_field):
@@ -187,10 +193,13 @@ def create_combined_sentences(categories, eng_prefixes, cn_prefixes, eng_suffixe
     :param cn_prefixes: List of Chinese prefix strings
     :param eng_suffixes: List of English suffix strings
     :param cn_suffixes: List of Chinese suffix strings
-    :param text_field: Name of the field containing the text content
+    :param text_field: Name of the field containing the text content (应该是 'adv')
     :return: Dictionary mapping classification to combined sentences
     """
     classifications = {}
+
+    # 正则表达式模式用于去除 <xxxxx> 格式的标签
+    tag_pattern = re.compile(r'<[^>]+>')
 
     # For each category and each prefix or suffix
     for cat_name, sentences in categories.items():
@@ -208,12 +217,23 @@ def create_combined_sentences(categories, eng_prefixes, cn_prefixes, eng_suffixe
 
             # Combine each sentence in this category with this prefix
             for sentence in sentences:
-                # Get the text content from the appropriate field
-                sentence_text = sentence.get(text_field, "")
+                # 获取 adv 字段的内容，如果不存在则尝试使用 text_field 字段
+                # 注意：确保这里使用 adv 字段而不是 origin
+                raw_text = sentence.get("adv", sentence.get(text_field, ""))
+
+                # 如果 adv 和 text_field 都不存在，尝试获取 origin
+                if not raw_text and "origin" in sentence:
+                    raw_text = sentence["origin"]
+                    print(f"Warning: Using 'origin' field as fallback for sentence text")
+
+                # 去除 <xxxxx> 标签
+                sentence_text = tag_pattern.sub('', raw_text).strip()
 
                 combined = {
-                    "origin": sentence.get("origin", sentence_text[:30] + "..."),
-                    "text": f"{prefix} {sentence_text}",
+                    "origin": sentence.get("origin", ""),  # 保留原始 origin 用于引用
+                    "text": f"{prefix} {sentence_text}",  # 使用前缀组合
+                    "raw_adv": raw_text,  # 保存原始未处理的 adv 内容
+                    "adv": sentence_text,  # 保存处理后的 adv 内容
                     "category": cat_name,
                     "prefix_index": prefix_idx,
                     "suffix_index": -1,  # No suffix
@@ -229,12 +249,23 @@ def create_combined_sentences(categories, eng_prefixes, cn_prefixes, eng_suffixe
 
             # Combine each sentence in this category with this suffix
             for sentence in sentences:
-                # Get the text content from the appropriate field
-                sentence_text = sentence.get(text_field, "")
+                # 获取 adv 字段的内容，如果不存在则尝试使用 text_field 字段
+                # 注意：确保这里使用 adv 字段而不是 origin
+                raw_text = sentence.get("adv", sentence.get(text_field, ""))
+
+                # 如果 adv 和 text_field 都不存在，尝试获取 origin
+                if not raw_text and "origin" in sentence:
+                    raw_text = sentence["origin"]
+                    print(f"Warning: Using 'origin' field as fallback for sentence text")
+
+                # 去除 <xxxxx> 标签
+                sentence_text = tag_pattern.sub('', raw_text).strip()
 
                 combined = {
-                    "origin": sentence.get("origin", sentence_text[:30] + "..."),
-                    "text": f"{sentence_text} {suffix}",
+                    "origin": sentence.get("origin", ""),  # 保留原始 origin 用于引用
+                    "text": f"{sentence_text} {suffix}",  # 使用后缀组合
+                    "raw_adv": raw_text,  # 保存原始未处理的 adv 内容
+                    "adv": sentence_text,  # 保存处理后的 adv 内容
                     "category": cat_name,
                     "prefix_index": -1,  # No prefix
                     "suffix_index": suffix_idx,
@@ -377,7 +408,7 @@ def main():
     parser.add_argument("--model_path", required=True, help="Path to the quantized model")
     parser.add_argument("--device", default="cuda", help="Device to run the model on (cuda or cpu)")
     parser.add_argument("--batch_size", type=int, default=1, help="Batch size for processing")
-    parser.add_argument("--text_field", default=None, help="Field name for text content")
+    parser.add_argument("--text_field", default="adv", help="Field name for text content")
 
     args = parser.parse_args()
 
@@ -411,7 +442,7 @@ def main():
         print("Failed to process input file.")
         sys.exit(1)
 
-    # 2. Identify the field containing text content
+    # 2. Identify the field containing text content (默认使用 adv 字段)
     text_field = args.text_field if args.text_field else identify_text_field(filtered_sentences)
 
     # 3. Load prefixes and suffixes (now with English and Chinese versions)

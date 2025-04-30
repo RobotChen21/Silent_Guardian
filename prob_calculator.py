@@ -119,16 +119,16 @@ def categorize_sentences(file_type):
     """
     if file_type == 'target':
         categories = {
-            "写作": (0, 10),  # 10 writing sentences (0-9)
-            "扮演": (10, 20),  # 10 roleplay sentences (10-19)
-            "常识": (20, 30),  # 10 commonsense sentences (20-29)
-            "物理": (30, 40),  # 10 physics sentences (30-39)
-            "反事实": (40, 50),  # 10 counterfactual sentences (40-49)
-            "编程": (50, 57),  # 7 programming sentences (50-56)
-            "数学": (57, 60),  # 3 math sentences (57-59)
-            "通用": (60, 70),  # 10 general sentences (60-69)
-            "知识": (70, 80),  # 10 knowledge sentences (70-79)
-            "违规问": (80, 90)  # 10 violation questions (80-89)
+            "writing": (0, 10),  # 10 writing sentences (0-9)
+            "roleplay": (10, 20),  # 10 roleplay sentences (10-19)
+            "commonsense": (20, 30),  # 10 commonsense sentences (20-29)
+            "physics": (30, 40),  # 10 physics sentences (30-39)
+            "counterfactual": (40, 50),  # 10 counterfactual sentences (40-49)
+            "programming": (50, 57),  # 7 programming sentences (50-56)
+            "math": (57, 60),  # 3 math sentences (57-59)
+            "general": (60, 70),  # 10 general sentences (60-69)
+            "knowledge": (70, 80),  # 10 knowledge sentences (70-79)
+            "violation": (80, 90)  # 10 violation questions (80-89)
         }
     elif file_type == 'novel':
         categories = {
@@ -186,7 +186,19 @@ def main():
 
     # Process each sentence
     for i, target in enumerate(tqdm(targets)):
-        tokens = torch.tensor(tokenizer.encode(target)).to(device)
+        # Check if current item has an "adv" field to use that sentence instead
+        adv_sentence = filtered_data[i].get('adv', None)
+
+        if adv_sentence:
+            # Remove <xxxx> tags from the beginning of the adv sentence if present
+            processed_sentence = re.sub(r'^<[^>]+>', '', adv_sentence).strip()
+            print(f"Using adv sentence: {processed_sentence} (original: {adv_sentence})")
+            calculation_target = processed_sentence
+        else:
+            # Use the original target if no adv field
+            calculation_target = target
+
+        tokens = torch.tensor(tokenizer.encode(calculation_target)).to(device)
 
         # Calculate new probability
         new_prob = calculate_probability(model, tokenizer, tokens)
@@ -197,6 +209,7 @@ def main():
         # Store results, including original data
         result = filtered_data[i].copy()  # Copy all original fields
         result["model_prob"] = new_prob  # Add new probability as a separate field
+        result["calculation_target"] = calculation_target  # Add the actual text used for calculation
         results.append(result)
 
         # Determine category based on position
@@ -214,7 +227,9 @@ def main():
             result["category"] = "unknown"
 
         # Print results
-        print(f"Sentence: {target}")
+        print(f"Original Sentence: {target}")
+        if adv_sentence:
+            print(f"Adv Sentence Used: {calculation_target}")
         print(f"Category: {result['category']}")
         print(f"Original Probability: {original_prob}")
         print(f"New Model Probability: {new_prob}")
