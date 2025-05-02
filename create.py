@@ -101,11 +101,11 @@ class defend_manger:
         device = "cuda:0"
         tokenizer_path_1 = model_path_1 = self.path
         tokenizer_1 = AutoTokenizer.from_pretrained(tokenizer_path_1)
-        model_1 = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
+        model_1 = AutoGPTQForCausalLM.from_pretrained(model_path_1,trust_remote_code=True,quantize_config=None).to(device)
 
         tokenizer_path_2 = model_path_2 = self.agg_path
         tokenizer_2 = AutoTokenizer.from_pretrained(tokenizer_path_2)
-        model_2 = AutoGPTQForCausalLM.from_pretrained(model_path,trust_remote_code=True,quantize_config=None).to(device)
+        model_2 = AutoGPTQForCausalLM.from_pretrained(model_path_2,trust_remote_code=True,quantize_config=None).to(device)
 
         targets = json.load(open(self.target_file, 'r'))
         predictions = []

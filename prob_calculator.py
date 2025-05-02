@@ -68,81 +68,42 @@ def calculate_probability(model, tokenizer, tokens):
     return end_token_prob
 
 
-def get_file_type(input_file):
-    """
-    Determine if the input file is a target or novel type
-
-    :param input_file: Input file path
-    :return: 'target' or 'novel'
-    """
-    filename = os.path.basename(input_file).lower()
-    if 'target' in filename:
-        return 'target'
-    elif 'novel' in filename:
-        return 'novel'
-    else:
-        # Default to target if can't determine
-        print(f"Warning: Could not determine file type from name '{filename}'. Defaulting to 'target'.")
-        return 'target'
-
-
-def generate_output_filename(input_file, model_path, file_type):
+def generate_output_filename(input_file, model_path):
     """
     Generate output filename based on input file and model path
-    Format: model1->model2_target/novel_yyyyMMdd.json
+    Format: model1_modelname_20250427.json
     """
     # Extract the model1 part from input filename (model1_dataset_time.json)
     input_basename = os.path.basename(input_file)
     model1_match = re.match(r'([^_]+)_.*\.json', input_basename)
     model1_part = model1_match.group(1) if model1_match else "model"
 
-    # Extract model2 from model path (TheBloke/model2_xxxx)
-    model_path_parts = os.path.normpath(model_path).split(os.path.sep)
-    if len(model_path_parts) >= 2:
-        model2_full = model_path_parts[-1]  # Get the last part after the slash
-        model2_match = re.match(r'([^-]+)', model2_full)
-        model2_part = model2_match.group(1) if model2_match else model2_full
-    else:
-        model2_part = os.path.basename(os.path.normpath(model_path))
+    # Extract model name from model path
+    model_name = os.path.basename(os.path.normpath(model_path))
 
     # Get current date in format YYYYMMDD
     current_date = datetime.datetime.now().strftime("%Y%m%d")
 
-    # Create output filename with the new format model1->model2_target_yyyyMMdd.json
-    return f"{model1_part}-》{model2_part}_{file_type}_{current_date}.json"
+    # Create output filename
+    return f"{model1_part}_{model_name}_{current_date}.json"
 
 
-def categorize_sentences(file_type):
+def categorize_sentences():
     """
     Return the mapping of categories to their expected order in filtered data
-    based on whether it's a target or novel file type
     """
-    if file_type == 'target':
-        categories = {
-            "writing": (0, 10),  # 10 writing sentences (0-9)
-            "roleplay": (10, 20),  # 10 roleplay sentences (10-19)
-            "commonsense": (20, 30),  # 10 commonsense sentences (20-29)
-            "physics": (30, 40),  # 10 physics sentences (30-39)
-            "counterfactual": (40, 50),  # 10 counterfactual sentences (40-49)
-            "programming": (50, 57),  # 7 programming sentences (50-56)
-            "math": (57, 60),  # 3 math sentences (57-59)
-            "general": (60, 70),  # 10 general sentences (60-69)
-            "knowledge": (70, 80),  # 10 knowledge sentences (70-79)
-            "violation": (80, 90)  # 10 violation questions (80-89)
-        }
-    elif file_type == 'novel':
-        categories = {
-            "en_40tokens": (0, 5),  # 5 English 40 tokens (0-4)
-            "zh_40tokens": (5, 10),  # 5 Chinese 40 tokens (5-9)
-            "en_80tokens": (10, 15),  # 5 English 80 tokens (10-14)
-            "zh_80tokens": (15, 20),  # 5 Chinese 80 tokens (15-19)
-            "en_120tokens": (20, 25),  # 5 English 120 tokens (20-24)
-            "zh_120tokens": (25, 30)  # 5 Chinese 120 tokens (25-29)
-        }
-    else:
-        # Should never reach here, but just in case
-        categories = {}
-
+    categories = {
+        "写作": (0, 10),  # 10 writing sentences (0-9)
+        "扮演": (10, 20),  # 10 roleplay sentences (10-19)
+        "常识": (20, 30),  # 10 commonsense sentences (20-29)
+        "物理": (30, 40),  # 10 physics sentences (30-39)
+        "反事实": (40, 50),  # 10 counterfactual sentences (40-49)
+        "编程": (50, 57),  # 7 programming sentences (50-56)
+        "数学": (57, 60),  # 3 math sentences (57-59)
+        "通用": (60, 70),  # 10 general sentences (60-69)
+        "知识": (70, 80),  # 10 knowledge sentences (70-79)
+        "违规问": (80, 90)  # 10 violation questions (80-89)
+    }
     return categories
 
 
@@ -151,10 +112,6 @@ def main():
     parser.add_argument("--path", type=str, required=True, help="Path to the model")
     parser.add_argument("--input_file", type=str, required=True, help="Path to input JSON file with original data")
     args = parser.parse_args()
-
-    # Determine file type (target or novel)
-    file_type = get_file_type(args.input_file)
-    print(f"Processing file as type: {file_type}")
 
     # First, filter the input JSON file
     filtered_data = filter_json_by_max_prob(args.input_file)
@@ -176,48 +133,30 @@ def main():
         quantize_config=None
     ).to(device)
 
-    # Get category mapping based on file type
-    categories = categorize_sentences(file_type)
+    # Get category mapping
+    categories = categorize_sentences()
 
-    # Initialize category-based data containers for both original and new probs
-    original_category_probs = defaultdict(list)
-    new_category_probs = defaultdict(list)
+    # Initialize category-based data containers
+    category_probs = defaultdict(list)
     results = []
 
     # Process each sentence
     for i, target in enumerate(tqdm(targets)):
-        # Check if current item has an "adv" field to use that sentence instead
-        adv_sentence = filtered_data[i].get('adv', None)
+        tokens = torch.tensor(tokenizer.encode(target)).to(device)
 
-        if adv_sentence:
-            # Remove <xxxx> tags from the beginning of the adv sentence if present
-            processed_sentence = re.sub(r'^<[^>]+>', '', adv_sentence).strip()
-            print(f"Using adv sentence: {processed_sentence} (original: {adv_sentence})")
-            calculation_target = processed_sentence
-        else:
-            # Use the original target if no adv field
-            calculation_target = target
-
-        tokens = torch.tensor(tokenizer.encode(calculation_target)).to(device)
-
-        # Calculate new probability
-        new_prob = calculate_probability(model, tokenizer, tokens)
-
-        # Get original probability from filtered data
-        original_prob = filtered_data[i].get('prob', 0)
+        # Calculate probability
+        prob = calculate_probability(model, tokenizer, tokens)
 
         # Store results, including original data
         result = filtered_data[i].copy()  # Copy all original fields
-        result["model_prob"] = new_prob  # Add new probability as a separate field
-        result["calculation_target"] = calculation_target  # Add the actual text used for calculation
+        result["model_prob"] = prob  # Add new probability as a separate field
         results.append(result)
 
         # Determine category based on position
         category_found = False
         for category_name, (start_idx, end_idx) in categories.items():
             if start_idx <= i < end_idx:
-                original_category_probs[category_name].append(original_prob)
-                new_category_probs[category_name].append(new_prob)
+                category_probs[category_name].append(prob)
                 result["category"] = category_name  # Add category to the result
                 category_found = True
                 break
@@ -227,42 +166,27 @@ def main():
             result["category"] = "unknown"
 
         # Print results
-        print(f"Original Sentence: {target}")
-        if adv_sentence:
-            print(f"Adv Sentence Used: {calculation_target}")
+        print(f"Sentence: {target}")
         print(f"Category: {result['category']}")
-        print(f"Original Probability: {original_prob}")
-        print(f"New Model Probability: {new_prob}")
+        print(f"Model Probability: {prob}")
         print("==============")
 
         # Clean up GPU memory
         gc.collect()
         torch.cuda.empty_cache()
 
-    # Calculate average probabilities for each category (both original and new)
-    category_comparisons = {}
-    for category in set(list(original_category_probs.keys()) + list(new_category_probs.keys())):
-        original_probs = original_category_probs.get(category, [])
-        new_probs = new_category_probs.get(category, [])
+    # Calculate average probabilities for each category
+    category_averages = {}
+    for category, probs in category_probs.items():
+        if probs:
+            avg_prob = sum(probs) / len(probs)
+            category_averages[category] = avg_prob
+            print(f"Category: {category}, Average Probability: {avg_prob}")
 
-        original_avg = sum(original_probs) / len(original_probs) if original_probs else 0
-        new_avg = sum(new_probs) / len(new_probs) if new_probs else 0
-
-        category_comparisons[category] = {
-            "original_avg_prob": original_avg,
-            "new_avg_prob": new_avg,
-            "difference": new_avg - original_avg
-        }
-
-        print(f"Category: {category}")
-        print(f"  Original Average Probability: {original_avg}")
-        print(f"  New Average Probability: {new_avg}")
-        print(f"  Difference: {new_avg - original_avg}")
-
-    # Create a final results structure
+    # Create a final results structure with both individual sentences and category averages
     final_results = {
         "individual_results": results,
-        "category_comparisons": category_comparisons
+        "category_averages": category_averages
     }
 
     # Create output directory if it doesn't exist
@@ -270,8 +194,8 @@ def main():
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # Generate dynamic output filename with appropriate type
-    result_name = generate_output_filename(args.input_file, args.path, file_type)
+    # Generate dynamic output filename
+    result_name = generate_output_filename(args.input_file, args.path)
 
     # Save results to JSON file
     json_path = os.path.join(output_dir, result_name)

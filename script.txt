@@ -19,7 +19,9 @@ export HF_HOME=/root/autodl-tmp/cache/
 export TRANSFORMERS_CACHE=/root/autodl-tmp/cache/hub
 
 训练样本
-python create.py --STP "STP" --path "TheBloke/deepseek-llm-7B-chat-GPTQ" --bert_path "bert" --agg_path "llama" --target_file "dataset/example_40.json" --instructions_file "dataset/instructions.json" --epoch 30 --batch_size 64 --topk 5 --topk_semanteme 10
+python create.py --STP "STP" --path "TheBloke/deepseek-llm-7B-chat-GPTQ" --target_file "dataset/example_40.json" --epoch 30 --batch_size 64 --topk 5 --topk_semanteme 10
+
+python create.py --STP "STP_agg" --path "TheBloke/deepseek-llm-7B-chat-GPTQ" --agg_path "TheBloke/LlamaGuard-7B-GPTQ" --target_file "dataset/target.json" --epoch 12 --batch_size 64 --topk 5 --topk_semanteme 10
 TheBloke/deepseek-llm-7B-chat-GPTQ
 TheBloke/LlamaGuard-7B-GPTQ
 TheBloke/vicuna-7B-v1.3-GPTQ
@@ -45,7 +47,10 @@ python novel_analyze.py --json_file "deepseek_novel_20250427.json"
 python epoch_analyze.py commom_method/deepseek_example_40_20250427.json
 
 迁移性计算PSR
-python prob_calculator.py --path TheBloke/vicuna-7B-v1.3-GPTQ --input_file "commom_method/deepseek_novel_20250427.json"
+python prob_trans.py --path TheBloke/vicuna-7B-v1.3-GPTQ --input_file "commom_method/deepseek_novel_20250427.json"
 
 计算带前后缀之后的PSR
 python pre_suf_sentence.py commom_method/vicuna_novel_20250425.json dataset/pre_suf_sentence.json --model_path TheBloke/vicuna-7B-v1.3-GPTQ
+
+计算鲁棒性
+python robustness.py --input_file commom_method/vicuna_novel_robustness_20250502.json --model_path TheBloke/vicuna-7B-v1.3-GPTQ
